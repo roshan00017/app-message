@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Coverage
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Spec / docs files (not part of the app)
+BACKEND.md
+FRONTEND.md
+AGENTS.md
+intial prompt.md
+docs/
+ui/
+
+# Misc
+*.tsbuildinfo
+.turbo/
+
+# Docker volumes
+mongodb_data/
+redis_data/
+
+# Temporary files
+tmp/
+temp/
+*.log

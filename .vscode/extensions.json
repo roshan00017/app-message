@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next",
+    "angular.ng-template",
+    "csstools.postcss",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml"
+  ]
+}

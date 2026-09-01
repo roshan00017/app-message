@@ -1,0 +1,126 @@
+import { useMemo, useEffect } from 'react';
+import { useMatch } from '@tanstack/react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { CustomerLayout } from '@/components/layout/customer-layout';
+import { ConversationHeader } from '@/components/conversation/conversation-header';
+import { ConversationList } from '@/components/conversation/conversation-list';
+import { MessageInput } from '@/components/message/message-input';
+import { MessageList } from '@/components/message/message-list';
+import { useTypingStore, EMPTY_ARRAY } from '@/stores/useTypingStore';
+import { useConversationSocket } from '@/hooks/use-conversation-socket';
+import { api } from '@/services/api';
+import type { ConversationSummary } from '@messaging/shared/types';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
+
+export default function CustomerConversationDetailPage() {
+  const match = useMatch({ from: '/customer/chat/$conversationId' });
+  const conversationId = match.params.conversationId;
+  const queryClient = useQueryClient();
+
+  useConversationSocket(conversationId);
+
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (!conversationId) return;
+    api
+      .patch(`/conversations/${conversationId}/read`)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['unread-counts'] });
+      })
+      .catch(() => {});
+  }, [conversationId, queryClient]);
+
+  const typingMap = useTypingStore((s) => s.typing);
+  const typingUsers = typingMap[conversationId] ?? EMPTY_ARRAY;
+
+  const { data: conversation, isLoading } = useQuery({
+    queryKey: ['conversation', conversationId],
+    queryFn: async () => {
+      const { data } = await api.get(`/conversations/${conversationId}`);
+      return data.data as ConversationSummary;
+    },
+    enabled: !!conversationId,
+  });
+
+  const userNameMap = useMemo(() => {
+    if (!conversation?.participants) return {};
+    const map: Record<string, string> = {};
+    for (const p of conversation.participants) {
+      map[p.id] = p.name;
+    }
+    return map;
+  }, [conversation?.participants]);
+
+  const displayName =
+    conversation?.name ??
+    conversation?.participants.map((p) => p.name).join(', ') ??
+    'Unknown';
+  const otherParticipant = conversation?.participants[0];
+  const isWaiting = conversation?.status === 'waiting' && !conversation?.assignedAgent;
+  const isClosed = conversation?.status === 'closed';
+
+  return (
+    <CustomerLayout>
+      <div className="flex h-full">
+        {/* Left sidebar - conversation list */}
+        <div className="hidden w-80 border-r md:block">
+          <ConversationList basePath="/customer/chat" />
+        </div>
+
+        {/* Right side - messages */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : (
+            <>
+              <ConversationHeader
+                conversationId={conversationId}
+                name={displayName}
+                participantId={otherParticipant?.id}
+                participantAvatar={otherParticipant?.avatar}
+                status={conversation?.status}
+              />
+
+              {/* Waiting for agent banner */}
+              {isWaiting && (
+                <div className="flex items-center justify-center border-b border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-amber-600">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                    </span>
+                    <span>Waiting for a support agent to join...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Closed conversation banner */}
+              {isClosed && (
+                <div className="flex items-center justify-center border-b border-gray-500/20 bg-gray-500/5 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span className="h-2 w-2 rounded-full bg-gray-400" />
+                    <span>This conversation is closed. You can no longer send messages.</span>
+                  </div>
+                </div>
+              )}
+
+              <MessageList
+                conversationId={conversationId}
+                typingUserIds={typingUsers}
+                userNames={userNameMap}
+              />
+
+              {/* Only show message input if conversation is not closed */}
+              {!isClosed && (
+                <MessageInput conversationId={conversationId} />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </CustomerLayout>
+  );
+}
